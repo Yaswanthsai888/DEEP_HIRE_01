@@ -26,13 +26,11 @@ exports.executeCode = async (req, res) => {
       return res.status(400).json({ message: 'Unsupported language.' });
     }
 
-    // Use RapidAPI Judge0 CE API temporarily for development
-    const judge0Endpoint = 'https://judge0-ce.p.rapidapi.com';
-    const headers = {
+    // Use ngrok tunnel to access local Judge0 instance
+    const judge0Endpoint = process.env.JUDGE0_API_URL || 'https://06eb-2401-4900-882e-a457-78cc-e69c-7fa7-e8a3.ngrok-free.app';
+    
+    let headers = {
       'Content-Type': 'application/json',
-      'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
-      // Get a free RapidAPI key from https://rapidapi.com/judge0-official/api/judge0-ce
-      'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || 'YOUR_RAPIDAPI_KEY'
     };
     
     // Submit code to Judge0
