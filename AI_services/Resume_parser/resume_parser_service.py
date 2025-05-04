@@ -3,7 +3,8 @@ import tempfile
 import uuid
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from Resume_parser import parse_resume  # Ensure this module exists and works
+from fastapi.responses import JSONResponse
+from Resume_parser import parse_resume
 
 app = FastAPI(title="Resume Parser API")
 
@@ -13,7 +14,8 @@ app.add_middleware(
         "http://localhost:3000",
         "https://pac-talent-track.web.app", 
         "https://deep-hire-app.web.app",
-        "https://resume-parser-service-g9u8.onrender.com"  # Add the render.com domain
+        "https://resume-parser-service-g9u8.onrender.com",
+        "http://localhost:5000"  # Add backend server for local development
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -22,35 +24,46 @@ app.add_middleware(
 
 @app.head("/")
 async def head_root():
-    return {"status": "ok"}
+    return JSONResponse({"status": "ok"})
 
 @app.get("/")
 async def root():
-    return {
+    return JSONResponse({
         "status": "ok",
         "message": "Resume Parser is live",
         "parse_endpoint": "/parse-resume"
-    }
+    })
 
 @app.post("/parse-resume")
 async def parse_resume_endpoint(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "detail": "Only PDF files are supported"}
+        )
 
     temp_dir = tempfile.gettempdir()
     temp_path = os.path.join(temp_dir, f"{uuid.uuid4()}_{file.filename}")
 
     try:
         # Write uploaded file to temporary file
+        contents = await file.read()
         with open(temp_path, "wb") as buffer:
-            buffer.write(await file.read())
+            buffer.write(contents)
         
         # Process the file
         result = parse_resume(temp_path)
-        return result
+        
+        return JSONResponse(
+            content=result,
+            headers={"Content-Type": "application/json"}
+        )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "detail": f"Error processing file: {str(e)}"}
+        )
     
     finally:
         # Ensure temporary file is always cleaned up
