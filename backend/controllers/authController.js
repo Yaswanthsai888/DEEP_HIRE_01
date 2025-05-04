@@ -30,9 +30,12 @@ exports.register = async (req, res) => {
             ...formData.getHeaders(),
             'Content-Type': 'multipart/form-data'
           };
-          const parserRes = await axios.post('http://localhost:8000/parse-resume', formData, {
+          
+          // Use the environment variable for the resume parser URL, with a fallback
+          const resumeParserUrl = process.env.RESUME_PARSER_URL || 'http://localhost:8000';
+          const parserRes = await axios.post(`${resumeParserUrl}/parse-resume`, formData, {
             headers,
-            timeout: 5000,
+            timeout: 10000, // Increased timeout for remote service
             maxContentLength: Infinity,
             maxBodyLength: Infinity
           });
