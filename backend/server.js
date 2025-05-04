@@ -10,7 +10,15 @@ const app = express();
 app.use(cors({
   origin: ['https://deep-hire-app.firebaseapp.com', 'https://deep-hire-app.web.app', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Accept', 
+    'Origin', 
+    'X-Requested-With',
+    'Cache-Control',  // Added to allow this header
+    'Pragma'          // Added to allow this header
+  ],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   credentials: true, // Allow cookies to be sent with requests
   maxAge: 600 // Cache preflight request for 10 minutes
