@@ -1,8 +1,10 @@
 const User = require('../models/User');
 // Add other necessary models like Job, Application if needed for stats
 
-// Define controller functions
-const getAllUsers = async (req, res) => {
+// @desc    Get all users
+// @route   GET /api/admin/users
+// @access  Private/Admin
+exports.getAllUsers = async (req, res) => {
     try {
         // TODO: Add pagination later if needed
         const users = await User.find({}).select('-password'); // Exclude passwords
@@ -13,7 +15,10 @@ const getAllUsers = async (req, res) => {
     }
 };
 
-const getUserById = async (req, res) => {
+// @desc    Get user by ID
+// @route   GET /api/admin/users/:id
+// @access  Private/Admin
+exports.getUserById = async (req, res) => {
     try {
         const user = await User.findById(req.params.id).select('-password');
         if (!user) {
@@ -30,7 +35,10 @@ const getUserById = async (req, res) => {
     }
 };
 
-const updateUser = async (req, res) => {
+// @desc    Update user by ID (Admin)
+// @route   PUT /api/admin/users/:id
+// @access  Private/Admin
+exports.updateUser = async (req, res) => {
     try {
         const { name, email, role } = req.body;
         const user = await User.findById(req.params.id);
@@ -81,7 +89,10 @@ const updateUser = async (req, res) => {
     }
 };
 
-const deleteUser = async (req, res) => {
+// @desc    Delete user
+// @route   DELETE /api/admin/users/:id
+// @access  Private/Admin
+exports.deleteUser = async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
 
@@ -98,7 +109,10 @@ const deleteUser = async (req, res) => {
     }
 };
 
-const getDashboardStats = async (req, res) => {
+// @desc    Get dashboard statistics
+// @route   GET /api/admin/dashboard/stats
+// @access  Private/Admin
+exports.getDashboardStats = async (req, res) => {
     try {
         const totalUsers = await User.countDocuments();
         
@@ -144,11 +158,4 @@ const getDashboardStats = async (req, res) => {
     }
 };
 
-// Export all functions using module.exports
-module.exports = {
-    getAllUsers,
-    getUserById,
-    updateUser,
-    deleteUser,
-    getDashboardStats
-};
+// Note: No longer using module.exports = { ... } at the end
