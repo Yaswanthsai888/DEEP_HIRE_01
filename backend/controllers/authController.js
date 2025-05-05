@@ -7,7 +7,21 @@ const fs = require('fs');
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, recruiterKey } = req.body; // <-- Destructure recruiterKey
+
+    // --- Recruiter Key Validation ---
+    if (role === 'recruiter') {
+      const expectedKey = process.env.RECRUITER_REGISTRATION_KEY;
+      if (!expectedKey) {
+        console.error('RECRUITER_REGISTRATION_KEY environment variable is not set.');
+        return res.status(500).json({ message: 'Server configuration error.' });
+      }
+      if (!recruiterKey || recruiterKey !== expectedKey) {
+        return res.status(403).json({ message: 'Invalid recruiter registration key.' });
+      }
+    }
+    // --- End Recruiter Key Validation ---
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
@@ -68,7 +82,7 @@ exports.register = async (req, res) => {
     await user.save();
     res.status(201).json({ 
       message: 'User registered successfully',
-      skills: user.parsedResume.skills
+      skills: user.parsedResume?.skills // Ensure skills exist
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -78,14 +92,24 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(`Login attempt for email: ${email}`); // Log email
+
     const user = await User.findOne({ email });
     if (!user) {
+      console.log(`Login failed: User not found for email: ${email}`); // Log user not found
       return res.status(400).json({ message: 'Invalid credentials' });
     }
+    console.log(`Login attempt: User found for email: ${email}`); // Log user found
+
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log(`Login attempt: Password match result for ${email}: ${isMatch}`); // Log password match result
+
     if (!isMatch) {
+      console.log(`Login failed: Password mismatch for email: ${email}`); // Log password mismatch
       return res.status(400).json({ message: 'Invalid credentials' });
     }
+
+    console.log(`Login successful for email: ${email}`); // Log successful login
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -93,6 +117,7 @@ exports.login = async (req, res) => {
     );
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
+    console.error(`Login error for email ${req.body?.email}:`, err); // Log any errors
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
