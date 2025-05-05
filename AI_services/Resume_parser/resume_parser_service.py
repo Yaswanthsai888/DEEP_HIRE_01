@@ -39,7 +39,8 @@ async def parse_resume_endpoint(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".pdf"):
         return JSONResponse(
             status_code=400,
-            content={"success": False, "detail": "Only PDF files are supported"}
+            content={"success": False, "detail": "Only PDF files are supported"},
+            media_type="application/json"
         )
 
     temp_dir = tempfile.gettempdir()
@@ -55,14 +56,16 @@ async def parse_resume_endpoint(file: UploadFile = File(...)):
         result = parse_resume(temp_path)
         
         return JSONResponse(
+            status_code=200,
             content=result,
-            headers={"Content-Type": "application/json"}
+            media_type="application/json"
         )
 
     except Exception as e:
         return JSONResponse(
             status_code=500,
-            content={"success": False, "detail": f"Error processing file: {str(e)}"}
+            content={"success": False, "detail": f"Error processing file: {str(e)}"},
+            media_type="application/json"
         )
     
     finally:
