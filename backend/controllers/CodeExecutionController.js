@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { endpoint } = require('../config/modelConfig');
 
 // POST /api/execute-code
 // Body: { code, language, input }
@@ -65,77 +66,49 @@ exports.executeCode = async (req, res) => {
   }
 };
 
-// Hugging Face Space API URL
-const HUGGINGFACE_SPACE_URL = 'https://yaswanthsai-live-coding-hr-assistant.hf.space';
-
-exports.getHint = async (req, res) => {
+const requestHint = async (code, taskDescription, mode = 'concise') => {
     try {
-        const { taskDescription, code, mode = 'concise' } = req.body;
-        
-        const response = await axios.post(`${HUGGINGFACE_SPACE_URL}/run/predict`, {
-            data: [
-                taskDescription,
-                code,
-                "hint",
-                mode
-            ]
+        const response = await axios.post(`${endpoint}/generate-hint`, {
+            code,
+            task_description: taskDescription,
+            mode
         });
-
-        if (response.data && response.data.data) {
-            res.json({ hint: response.data.data });
-        } else {
-            throw new Error('Invalid response from AI service');
-        }
+        return response.data;
     } catch (error) {
         console.error('Error getting hint:', error);
-        res.status(500).json({ error: 'Failed to get hint' });
+        throw error;
     }
 };
 
-exports.getFeedback = async (req, res) => {
+const requestFeedback = async (code, taskDescription, mode = 'concise') => {
     try {
-        const { taskDescription, code, mode = 'concise' } = req.body;
-        
-        const response = await axios.post(`${HUGGINGFACE_SPACE_URL}/run/predict`, {
-            data: [
-                taskDescription,
-                code,
-                "feedback",
-                mode
-            ]
+        const response = await axios.post(`${endpoint}/generate-feedback`, {
+            code,
+            task_description: taskDescription,
+            mode
         });
-
-        if (response.data && response.data.data) {
-            res.json({ feedback: response.data.data });
-        } else {
-            throw new Error('Invalid response from AI service');
-        }
+        return response.data;
     } catch (error) {
         console.error('Error getting feedback:', error);
-        res.status(500).json({ error: 'Failed to get feedback' });
+        throw error;
     }
 };
 
-exports.getFollowUp = async (req, res) => {
+const requestFollowUp = async (code, taskDescription) => {
     try {
-        const { taskDescription, code, mode = 'concise' } = req.body;
-        
-        const response = await axios.post(`${HUGGINGFACE_SPACE_URL}/run/predict`, {
-            data: [
-                taskDescription,
-                code,
-                "follow-up",
-                mode
-            ]
+        const response = await axios.post(`${endpoint}/generate-followup`, {
+            code,
+            task_description: taskDescription
         });
-
-        if (response.data && response.data.data) {
-            res.json({ followUp: response.data.data });
-        } else {
-            throw new Error('Invalid response from AI service');
-        }
+        return response.data;
     } catch (error) {
         console.error('Error getting follow-up:', error);
-        res.status(500).json({ error: 'Failed to get follow-up question' });
+        throw error;
     }
+};
+
+module.exports = {
+    requestHint,
+    requestFeedback,
+    requestFollowUp
 };
