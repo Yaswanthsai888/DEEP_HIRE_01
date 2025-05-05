@@ -1,112 +1,154 @@
 const User = require('../models/User');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const axios = require('axios');
-const path = require('path');
-const fs = require('fs');
+// Add other necessary models like Job, Application if needed for stats
 
-exports.register = async (req, res) => {
-  try {
-    const { name, email, password, role, recruiterKey } = req.body; // <-- Destructure recruiterKey
-
-    // --- Recruiter Key Validation ---
-    if (role === 'recruiter') {
-      const expectedKey = process.env.RECRUITER_REGISTRATION_KEY;
-      if (!expectedKey) {
-        console.error('RECRUITER_REGISTRATION_KEY environment variable is not set.');
-        return res.status(500).json({ message: 'Server configuration error.' });
-      }
-      if (!recruiterKey || recruiterKey !== expectedKey) {
-        return res.status(403).json({ message: 'Invalid recruiter registration key.' });
-      }
-    }
-    // --- End Recruiter Key Validation ---
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-    let resumePath = null;
-    let parsedResume = { skills: [] };
-    
+// Define controller functions
+const getAllUsers = async (req, res) => {
     try {
-      if (req.file) {
-        // Validate file exists before processing
-        if (!fs.existsSync(req.file.path)) {
-          throw new Error('Uploaded file not found');
-        }
-        // Call resume parser microservice if available
-        try {
-          const FormData = require('form-data');
-          const formData = new FormData();
-          formData.append('file', fs.createReadStream(req.file.path));
-          const headers = {
-            ...formData.getHeaders(),
-            'Content-Type': 'multipart/form-data'
-          };
-          
-          // Use the environment variable for the resume parser URL, with a fallback
-          const resumeParserUrl = process.env.RESUME_PARSER_URL || 'http://localhost:8000';
-          const parserRes = await axios.post(`${resumeParserUrl}/parse-resume`, formData, {
-            headers,
-            timeout: 10000, // Increased timeout for remote service
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity
-          });
-          if (!parserRes.data || typeof parserRes.data !== 'object') {
-            throw new Error('Invalid parser response format');
-          }
-          parsedResume = {
-            skills: Array.isArray(parserRes.data.skills) ? 
-              parserRes.data.skills.map(skill => skill.toLowerCase().trim()).filter(skill => skill.length > 0) : 
-              []
-          };
-          fs.unlinkSync(req.file.path); // Clean up uploaded file after parsing
-        } catch (parseErr) {
-          console.error('Resume parser error:', parseErr);
-          if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-          }
-          if (parseErr.code === 'ECONNREFUSED') {
-            console.error('Resume parser service unavailable');
-          }
-          parsedResume = { skills: [] };
-        }
-      }
-    } catch (err) {
-      console.error('File handling error:', err);
-      parsedResume = { skills: [] };
+        // TODO: Add pagination later if needed
+        const users = await User.find({}).select('-password'); // Exclude passwords
+        res.json(users);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, email, password: hashedPassword, role, parsedResume });
-    await user.save();
-    res.status(201).json({ 
-      message: 'User registered successfully',
-      skills: user.parsedResume?.skills // Ensure skills exist
-    });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
 };
 
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+const getUserById = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select('-password');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        res.json(user);
+    } catch (error) {
+        console.error(error);
+        // Handle potential CastError if ID format is invalid
+        if (error.kind === 'ObjectId') {
+             return res.status(404).json({ message: 'User not found' });
+        }
+        res.status(500).json({ message: 'Server Error' });
     }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+};
+
+const updateUser = async (req, res) => {
+    try {
+        const { name, email, role } = req.body;
+        const user = await User.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update fields only if they are provided in the request body
+        if (name) user.name = name;
+        if (email) {
+            // Optional: Add check for email uniqueness if allowing email change
+            const existingUser = await User.findOne({ email: email });
+            if (existingUser && existingUser._id.toString() !== user._id.toString()) {
+                return res.status(400).json({ message: 'Email already in use' });
+            }
+            user.email = email;
+        }
+        if (role) {
+            // Ensure the role is valid according to the schema enum
+            if (!User.schema.path('role').enumValues.includes(role)) {
+                 return res.status(400).json({ message: 'Invalid role specified' });
+            }
+            user.role = role;
+        }
+        // Note: Password should generally not be updated via this admin route.
+        // Implement a separate password reset flow if needed.
+
+        const updatedUser = await user.save();
+        
+        // Return updated user data, excluding password
+        const userToReturn = updatedUser.toObject();
+        delete userToReturn.password;
+
+        res.json(userToReturn);
+
+    } catch (error) {
+        console.error('Error updating user:', error);
+        // Handle potential CastError if ID format is invalid
+        if (error.kind === 'ObjectId') {
+             return res.status(404).json({ message: 'User not found' });
+        }
+        // Handle potential validation errors from Mongoose
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: 'Server Error updating user' });
     }
-    const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' }
-    );
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+};
+
+const deleteUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        await user.deleteOne(); // or user.remove() depending on Mongoose version/hooks
+
+        res.json({ message: 'User removed' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+const getDashboardStats = async (req, res) => {
+    try {
+        const totalUsers = await User.countDocuments();
+        
+        // Count users with parsed resumes (assuming parsedResume is populated when parsed)
+        const resumesParsed = await User.countDocuments({ parsedResume: { $exists: true, $ne: null } });
+
+        // Aggregate top skills (assuming parsedResume.skills is an array of strings)
+        // Limit to top 5 skills for brevity
+        const topSkills = await User.aggregate([
+            { $match: { "parsedResume.skills": { $exists: true, $ne: null, $not: { $size: 0 } } } }, // Ensure skills array exists and is not empty
+            { $unwind: "$parsedResume.skills" }, // Deconstruct the skills array
+            { $group: { _id: "$parsedResume.skills", count: { $sum: 1 } } }, // Group by skill and count occurrences
+            { $sort: { count: -1 } }, // Sort by count descending
+            { $limit: 5 }, // Limit to top 5
+            { $project: { skill: "$_id", count: 1, _id: 0 } } // Rename _id to skill
+        ]);
+
+        // Aggregate sign-ups per day for the last 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const signupsPerDay = await User.aggregate([
+            { $match: { createdAt: { $gte: thirtyDaysAgo } } }, // Filter users created in the last 30 days
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, // Group by date (YYYY-MM-DD)
+                    count: { $sum: 1 } // Count users per day
+                }
+            },
+            { $sort: { _id: 1 } }, // Sort by date ascending
+            { $project: { date: "$_id", count: 1, _id: 0 } } // Rename _id to date
+        ]);
+
+        res.json({
+            totalUsers,
+            resumesParsed,
+            topSkills,
+            signupsPerDay
+        });
+    } catch (error) {
+        console.error('Error fetching dashboard stats:', error);
+        res.status(500).json({ message: 'Server Error fetching stats' });
+    }
+};
+
+// Export all functions using module.exports
+module.exports = {
+    getAllUsers,
+    getUserById,
+    updateUser,
+    deleteUser,
+    getDashboardStats
 };
