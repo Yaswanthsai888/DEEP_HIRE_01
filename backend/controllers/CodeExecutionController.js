@@ -4,7 +4,7 @@ const { endpoint } = require('../config/modelConfig');
 // POST /api/execute-code
 // Body: { code, language, input }
 // Returns: { stdout, stderr, status, time, memory }
-exports.executeCode = async (req, res) => {
+const executeCode = async (req, res) => {
   try {
     const { code, language, input } = req.body;
     if (!code || !language) {
@@ -108,6 +108,7 @@ const requestFollowUp = async (code, taskDescription) => {
 };
 
 module.exports = {
+    executeCode,
     requestHint,
     requestFeedback,
     requestFollowUp
