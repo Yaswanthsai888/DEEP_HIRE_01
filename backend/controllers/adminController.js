@@ -157,3 +157,5 @@ exports.getDashboardStats = async (req, res) => {
         res.status(500).json({ message: 'Server Error fetching stats' });
     }
 };
+
+// Note: No longer using module.exports = { ... } at the end
