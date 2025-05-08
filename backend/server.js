@@ -8,6 +8,13 @@ const passport = require('./passport');
 
 const app = express();
 
+// Security headers middleware
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  next();
+});
+
 // Enhanced CORS configuration for Firebase hosting
 app.use(cors({
   origin: ['https://deep-hire-app.firebaseapp.com', 'https://deep-hire-app.web.app', 'http://localhost:3000'],
@@ -19,7 +26,9 @@ app.use(cors({
     'Origin', 
     'X-Requested-With',
     'Cache-Control',  // Added to allow this header
-    'Pragma'          // Added to allow this header
+    'Pragma',         // Added to allow this header
+    'Cross-Origin-Opener-Policy',
+    'Cross-Origin-Embedder-Policy'
   ],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   credentials: true, // Allow cookies to be sent with requests
