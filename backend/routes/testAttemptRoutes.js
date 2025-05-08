@@ -6,7 +6,10 @@ const {
   getTestAnalytics,
   getJobAnalytics,
   releaseResults,
-  startMonitoring // Import the new controller function
+  startMonitoring,
+  startInterviewAttempt, // Import the new controller function
+  submitInterviewResponse, // Import the new controller function
+  completeInterview // Import the new controller function
 } = require('../controllers/TestAttemptController');
 const requireAuthAndRole = require('../middleware/authMiddleware');
 const { getAssignedTestsForCandidate, getTestById } = require('../controllers/TestController');
@@ -22,6 +25,22 @@ router.post('/:attemptId/start-monitoring', requireAuthAndRole('candidate'), sta
 router.post('/release-results', requireAuthAndRole('recruiter'), releaseResults);
 router.get('/assigned', requireAuthAndRole('candidate'), getAssignedTestsForCandidate);
 router.get('/test/:id', requireAuthAndRole('candidate'), getTestById);
+
+// Interview specific routes
+router.post('/interview/start', 
+  requireAuthAndRole('candidate'), 
+  startInterviewAttempt
+);
+
+router.post('/interview/:attemptId/response', 
+  requireAuthAndRole('candidate'), 
+  submitInterviewResponse
+);
+
+router.post('/interview/:attemptId/complete', 
+  requireAuthAndRole('candidate'), 
+  completeInterview
+);
 
 // Recruiter analytics
 router.get('/analytics/:testId', requireAuthAndRole('recruiter'), getTestAnalytics);

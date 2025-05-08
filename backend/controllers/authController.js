@@ -92,32 +92,38 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(`Login attempt for email: ${email}`); // Log email
+    console.log(`Login attempt for email: ${email}`);
 
     const user = await User.findOne({ email });
     if (!user) {
-      console.log(`Login failed: User not found for email: ${email}`); // Log user not found
+      console.log(`Login failed: User not found for email: ${email}`);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
-    console.log(`Login attempt: User found for email: ${email}`); // Log user found
 
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log(`Login attempt: Password match result for ${email}: ${isMatch}`); // Log password match result
-
     if (!isMatch) {
-      console.log(`Login failed: Password mismatch for email: ${email}`); // Log password mismatch
+      console.log(`Login failed: Password mismatch for email: ${email}`);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    console.log(`Login successful for email: ${email}`); // Log successful login
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+
+    // Return user data in the exact structure expected by frontend
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      token
+    });
   } catch (err) {
-    console.error(`Login error for email ${req.body?.email}:`, err); // Log any errors
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(`Login error for email ${req.body?.email}:`, err);
+    res.status(500).json({ message: 'Server error' });
   }
 };

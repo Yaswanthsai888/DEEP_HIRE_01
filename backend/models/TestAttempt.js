@@ -16,6 +16,25 @@ const testAttemptSchema = new mongoose.Schema({
   completedAt: { type: Date },
   durationMinutes: { type: Number },
   resultsReleased: { type: Boolean, default: false },
+  interviewResponses: [{
+    question: String,
+    answer: String,
+    audioUrl: String,
+    timestamp: { type: Date, default: Date.now },
+    aiEvaluation: {
+      score: Number,
+      feedback: String,
+      confidence: Number
+    }
+  }],
+  interviewSummary: {
+    overallScore: Number,
+    technicalAssessment: String,
+    communicationScore: Number,
+    keyStrengths: [String],
+    areasForImprovement: [String],
+    recommendationNotes: String
+  }
 });
 
 module.exports = mongoose.model('TestAttempt', testAttemptSchema);

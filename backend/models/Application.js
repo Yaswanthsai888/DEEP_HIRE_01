@@ -25,7 +25,28 @@ const applicationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Test'
   },
-  appliedAt: { type: Date, default: Date.now }
+  appliedAt: { type: Date, default: Date.now },
+  interviewDetails: {
+    scheduledDate: Date,
+    duration: Number,
+    status: {
+      type: String,
+      enum: ['pending', 'scheduled', 'completed', 'cancelled'],
+      default: 'pending'
+    },
+    feedback: {
+      technicalScore: Number,
+      communicationScore: Number,
+      overallRating: Number,
+      strengths: [String],
+      improvements: [String],
+      notes: String,
+      recommendation: {
+        type: String,
+        enum: ['strong_yes', 'yes', 'maybe', 'no'],
+      }
+    }
+  }
 });
 
 // Add an index to improve query performance for job applications

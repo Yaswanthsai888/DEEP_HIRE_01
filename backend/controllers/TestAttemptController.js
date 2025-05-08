@@ -384,6 +384,88 @@ const releaseResults = asyncHandler(async (req, res) => {
   });
 });
 
+// Start an interview attempt
+const startInterviewAttempt = asyncHandler(async (req, res) => {
+  const { testId } = req.body;
+  const candidateId = req.user._id;
+
+  // Check if test exists and is interview type
+  const test = await Test.findById(testId);
+  if (!test || test.testType !== 'interview') {
+    res.status(404);
+    throw new Error('Interview test not found');
+  }
+
+  // Create new attempt
+  const attemptObj = await TestAttempt.create({
+    test: testId,
+    candidate: candidateId,
+    durationMinutes: test.interviewConfig.duration
+  });
+
+  // Update application status
+  await Application.findOneAndUpdate(
+    { candidate: candidateId, currentRoundTest: testId },
+    { status: 'in_progress' }
+  );
+
+  res.status(201).json(attemptObj);
+});
+
+// Submit interview response
+const submitInterviewResponse = asyncHandler(async (req, res) => {
+  const { attemptId } = req.params;
+  const { question, answer, audioUrl } = req.body;
+  
+  const attempt = await TestAttempt.findById(attemptId);
+  if (!attempt || attempt.candidate.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error('Not authorized');
+  }
+
+  attempt.interviewResponses.push({
+    question,
+    answer,
+    audioUrl,
+    timestamp: new Date()
+  });
+
+  // If reached max questions or duration exceeded, complete the interview
+  const test = await Test.findById(attempt.test);
+  if (attempt.interviewResponses.length >= test.interviewConfig.maxQuestions) {
+    attempt.completedAt = new Date();
+  }
+
+  await attempt.save();
+  res.json(attempt);
+});
+
+// Complete interview and generate summary
+const completeInterview = asyncHandler(async (req, res) => {
+  const { attemptId } = req.params;
+  
+  const attempt = await TestAttempt.findById(attemptId)
+    .populate('test')
+    .populate('candidate');
+    
+  if (!attempt || attempt.candidate._id.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error('Not authorized');
+  }
+
+  // Mark attempt as completed
+  attempt.completedAt = new Date();
+  
+  // Update application status
+  await Application.findOneAndUpdate(
+    { candidate: attempt.candidate._id, currentRoundTest: attempt.test._id },
+    { status: 'completed' }
+  );
+
+  await attempt.save();
+  res.json(attempt);
+});
+
 module.exports = {
   startTest,
   submitTest,
@@ -392,4 +474,7 @@ module.exports = {
   getTestAnalytics,
   getJobAnalytics,
   releaseResults,
+  startInterviewAttempt,
+  submitInterviewResponse,
+  completeInterview
 };

@@ -57,6 +57,12 @@ const testSchema = new mongoose.Schema({
     enum: ['aptitude', 'coding', 'both', 'interview'],
     default: 'aptitude'
   },
+  interviewConfig: {
+    duration: { type: Number, default: 15 }, // Duration in minutes
+    minQuestions: { type: Number, default: 5 },
+    maxQuestions: { type: Number, default: 6 },
+    skillFocus: [String] // Skills to focus on during interview
+  },
   createdBy: { // Link to the recruiter who created the test
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
